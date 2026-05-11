@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    @apply bg-honey-50 text-bee-black font-sans;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-honey-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-honey-400 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-honey-600;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-honey-500 hover:bg-honey-600 text-bee-black font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-honey-100 hover:bg-honey-200 text-bee-black font-medium px-4 py-2 rounded-xl transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-honey-100 text-bee-black font-medium px-4 py-2 rounded-xl transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-red-100 hover:bg-red-200 text-red-700 font-medium px-4 py-2 rounded-xl transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-honey-100 overflow-hidden;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 rounded-xl border border-honey-200 bg-white focus:outline-none focus:ring-2 focus:ring-honey-400 focus:border-transparent transition-all duration-200 placeholder-gray-400;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .honeycomb-bg {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Crect width='56' height='100' fill='%23FFFBEB'/%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34z' fill='none' stroke='%23FDE68A' stroke-width='1'/%3E%3Cpath d='M28 100L0 84V50l28-16 28 16v34z' fill='none' stroke='%23FDE68A' stroke-width='1'/%3E%3C/svg%3E");
+  }
+
+  .type-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+/* Hexagon shape for avatars */
+.hex-avatar {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* Smooth transitions for modals */
+.modal-enter {
+  animation: modalIn 0.2s ease-out;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

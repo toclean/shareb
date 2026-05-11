@@ -1,0 +1,9 @@
+node_modules
+.git
+.env
+client/dist
+server/shareb.db
+server/shareb.db-shm
+server/shareb.db-wal
+server/uploads
+data
