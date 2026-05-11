@@ -55,8 +55,18 @@ app.get('/api/imgproxy', imgProxyLimiter, async (req, res) => {
   try { parsed = new URL(url); } catch { return res.status(400).end(); }
   if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).end();
   // Only allow known image CDN hostnames
-  const allowed = ['m.media-amazon.com', 'images-amazon.com', 'images-na.ssl-images-amazon.com', 'og.media-amazon.com'];
-  const ogAllowed = parsed.hostname.endsWith('.media-amazon.com') || parsed.hostname.endsWith('.ssl-images-amazon.com');
+  const allowed = [
+    // Amazon
+    'm.media-amazon.com', 'images-amazon.com', 'images-na.ssl-images-amazon.com', 'og.media-amazon.com',
+    // Walmart
+    'i5.walmartimages.com', 'i.walmartimages.com',
+    // Target
+    'target.scene7.com', 'assets.target.com',
+    // Best Buy
+    'pisces.bbystatic.com',
+  ];
+  const ogAllowed = parsed.hostname.endsWith('.media-amazon.com') || parsed.hostname.endsWith('.ssl-images-amazon.com')
+    || parsed.hostname.endsWith('.walmartimages.com') || parsed.hostname.endsWith('.scene7.com');
   if (!allowed.includes(parsed.hostname) && !ogAllowed) {
     // For non-Amazon URLs (og:image), allow any https image
     if (parsed.protocol !== 'https:') return res.status(400).end();

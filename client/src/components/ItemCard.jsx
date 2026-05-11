@@ -8,10 +8,23 @@ const TYPE_CONFIG = {
   video:  { icon: '🎬',  label: 'Video',   color: 'bg-purple-100 text-purple-700' },
   music:  { icon: '🎵',  label: 'Music',   color: 'bg-pink-100 text-pink-700' },
   link:   { icon: '🔗',  label: 'Link',    color: 'bg-green-100 text-green-700' },
-  amazon: { icon: '📦',  label: 'Amazon',  color: 'bg-orange-100 text-orange-700' },
+  amazon: { icon: '🛍️',  label: 'Shop',    color: 'bg-orange-100 text-orange-700' },
   note:   { icon: '📝',  label: 'Note',    color: 'bg-yellow-100 text-yellow-700' },
   file:   { icon: '📄',  label: 'File',    color: 'bg-gray-100 text-gray-700' },
 };
+
+function getRetailerConfig(url) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    if (hostname.includes('amazon.'))   return { icon: '📦', label: 'Amazon' };
+    if (hostname.includes('walmart.'))  return { icon: '🛒', label: 'Walmart' };
+    if (hostname.includes('target.'))   return { icon: '🎯', label: 'Target' };
+    if (hostname.includes('bestbuy.'))  return { icon: '💻', label: 'Best Buy' };
+    if (hostname.includes('etsy.'))     return { icon: '🎨', label: 'Etsy' };
+    if (hostname.includes('ebay.'))     return { icon: '🏷️', label: 'eBay' };
+  } catch { /* ignore */ }
+  return null;
+}
 
 const REACTIONS = ['❤️', '😍', '😂', '🔥', '👀', '🐝', '⭐'];
 
@@ -21,6 +34,8 @@ export default function ItemCard({ item: initialItem, onDelete, onReact, onFavor
   const [item, setItem] = useState(initialItem);
   const [fetchingPreview, setFetchingPreview] = useState(false);
   const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.file;
+  const retailer = item.type === 'amazon' && item.content ? getRetailerConfig(item.content) : null;
+  const displayCfg = retailer ? { ...cfg, icon: retailer.icon, label: retailer.label } : cfg;
 
   // Route external thumbnails through our server proxy to avoid hotlink blocking
   const thumbnailSrc = item.thumbnail
@@ -162,7 +177,7 @@ export default function ItemCard({ item: initialItem, onDelete, onReact, onFavor
             </div>
           </div>
           <span className={`type-badge ${cfg.color} flex-shrink-0`}>
-            {cfg.icon} {cfg.label}
+            {displayCfg.icon} {displayCfg.label}
           </span>
         </div>
 

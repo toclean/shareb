@@ -49,6 +49,50 @@ function extractMeta(html, property) {
   return (html.match(a) || html.match(b))?.[1]?.trim() || null;
 }
 
+// Helper: normalise a raw price string to "$X.XX" or null
+function formatPrice(raw) {
+  if (!raw) return null;
+  const cleaned = String(raw).trim().replace(/,/g, '');
+  const num = parseFloat(cleaned.replace(/[^\d.]/g, ''));
+  if (isNaN(num) || num <= 0 || num >= 100000) return null;
+  return cleaned.startsWith('$') ? `$${num.toFixed(2)}` : `$${num.toFixed(2)}`;
+}
+
+// Helper: extract price from JSON-LD structured data (Schema.org Product/Offer)
+function extractJsonLdPrice(html) {
+  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = scriptRe.exec(html)) !== null) {
+    try {
+      const root = JSON.parse(m[1]);
+      const nodes = [];
+      // Flatten top-level arrays and @graph arrays
+      const flatten = (obj) => {
+        if (Array.isArray(obj)) obj.forEach(flatten);
+        else if (obj && typeof obj === 'object') {
+          nodes.push(obj);
+          if (obj['@graph']) flatten(obj['@graph']);
+        }
+      };
+      flatten(root);
+
+      for (const node of nodes) {
+        const type = node['@type'];
+        if (type === 'Product' || type === 'IndividualProduct') {
+          const offers = Array.isArray(node.offers) ? node.offers[0] : node.offers;
+          if (offers?.price != null) return String(offers.price);
+          if (offers?.lowPrice != null) return String(offers.lowPrice);
+        }
+        if (type === 'Offer' || type === 'AggregateOffer') {
+          if (node.price != null) return String(node.price);
+          if (node.lowPrice != null) return String(node.lowPrice);
+        }
+      }
+    } catch (_) { /* skip invalid JSON */ }
+  }
+  return null;
+}
+
 // Helper: block private/loopback IPs to prevent SSRF
 function isPrivateHost(hostname) {
   return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
@@ -126,24 +170,77 @@ router.get('/link-preview', async (req, res) => {
         }
       }
 
-      // Amazon price extraction (best-effort)
-      const pricePatterns = [
-        /"priceAmount"\s*:\s*([\d.]+)/,
-        /"displayPrice"\s*:\s*"([^"]+)"/,
-        /"buyingPrice"\s*:\s*([\d.]+)/,
-        /class="[^"]*a-price-whole[^"]*"[^>]*>\s*([\d,]+)\s*</,
-        /id="priceblock_ourprice"[^>]*>\s*\$?([\d,.]+)/,
-        /"price"\s*:\s*"(\$[^"]{1,20})"/,
-      ];
-      for (const pat of pricePatterns) {
-        const m = html.match(pat);
-        if (m?.[1]) {
-          const raw = m[1].trim().replace(/,/g, '');
-          const num = parseFloat(raw.replace(/[^\d.]/g, ''));
-          if (!isNaN(num) && num > 0 && num < 100000) {
-            result.price = raw.startsWith('$') ? raw : `$${num.toFixed(2)}`;
-            break;
+      // ── Price extraction (layered: most reliable → least) ────────────────────
+
+      // Layer 1: JSON-LD structured data (works for Best Buy, Target, Etsy, eBay, Shopify…)
+      if (!result.price) {
+        result.price = formatPrice(extractJsonLdPrice(html));
+      }
+
+      // Layer 2: Open Graph / Facebook product price meta tag
+      if (!result.price) {
+        result.price = formatPrice(
+          extractMeta(html, 'product:price:amount') || extractMeta(html, 'og:price:amount')
+        );
+      }
+
+      // Layer 3: Retailer-specific JSON patterns (tighter context, less false-positive risk)
+      if (!result.price) {
+        const hostname = parsed.hostname.replace(/^www\./, '');
+        let pricePatterns = [];
+
+        if (hostname.includes('walmart.com')) {
+          pricePatterns = [
+            // "priceString":"$24.98" — most human-readable, safest match
+            /"priceString"\s*:\s*"(\$[\d,.]+)"/,
+            // "currentPrice":{"price":24.98} — numeric inside price object
+            /"currentPrice"\s*:\s*\{[^}]{0,120}"price"\s*:\s*([\d.]+)/,
+            // "displayPrice":"$24.98"
+            /"displayPrice"\s*:\s*"(\$[\d,.]+)"/,
+          ];
+        } else if (hostname.includes('target.com')) {
+          pricePatterns = [
+            // "formatted_current_price":"$24.99" — from __NEXT_DATA__ JSON blob
+            /"formatted_current_price"\s*:\s*"(\$[\d,.]+)"/,
+            // "current_retail":24.99
+            /"current_retail"\s*:\s*([\d.]+)/,
+          ];
+        } else if (hostname.includes('etsy.com')) {
+          pricePatterns = [
+            // Etsy listing JSON: "price":{"amount":"2499","divisor":100}
+            /"amount"\s*:\s*"([\d]+)"\s*,\s*"divisor"\s*:\s*([\d]+)/,
+            /"salePrice"\s*:\s*\{[^}]{0,120}"amount"\s*:\s*"([\d]+)"/,
+          ];
+        } else if (hostname.includes('ebay.com')) {
+          pricePatterns = [
+            /"binPrice"\s*:\s*\{[^}]{0,120}"value"\s*:\s*"([\d,.]+)"/,
+            /"currentPrice"\s*:\s*\{[^}]{0,120}"value"\s*:\s*"([\d,.]+)"/,
+            /"price"\s*:\s*\{[^}]{0,120}"value"\s*:\s*"([\d,.]+)"/,
+          ];
+        } else {
+          // Amazon + generic fallbacks
+          pricePatterns = [
+            /"priceAmount"\s*:\s*([\d.]+)/,
+            /"displayPrice"\s*:\s*"(\$[^"]{1,20})"/,
+            /"buyingPrice"\s*:\s*([\d.]+)/,
+            /class="[^"]*a-price-whole[^"]*"[^>]*>\s*([\d,]+)\s*</,
+            /id="priceblock_ourprice"[^>]*>\s*\$?([\d,.]+)/,
+          ];
+        }
+
+        for (const pat of pricePatterns) {
+          const m = html.match(pat);
+          if (!m) continue;
+
+          // Etsy special case: amount/divisor
+          if (hostname.includes('etsy.com') && m[2]) {
+            const price = parseInt(m[1], 10) / parseInt(m[2], 10);
+            if (price > 0 && price < 100000) { result.price = `$${price.toFixed(2)}`; break; }
+            continue;
           }
+
+          const p = formatPrice(m[1]);
+          if (p) { result.price = p; break; }
         }
       }
     }

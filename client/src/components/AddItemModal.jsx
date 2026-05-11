@@ -5,8 +5,20 @@ import toast from 'react-hot-toast';
 
 const LINK_TYPES = [
   { value: 'link', label: '🔗 Link', placeholder: 'https://...' },
-  { value: 'amazon', label: '📦 Amazon', placeholder: 'https://amazon.com/...' },
+  { value: 'amazon', label: '🛍️ Shop', placeholder: 'https://amazon.com/...' },
 ];
+
+function detectRetailerPlaceholder(url) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    if (hostname.includes('amazon.')) return 'https://amazon.com/dp/...';
+    if (hostname.includes('walmart.com')) return 'https://walmart.com/ip/...';
+    if (hostname.includes('target.com')) return 'https://target.com/p/...';
+    if (hostname.includes('bestbuy.com')) return 'https://bestbuy.com/site/...';
+    if (hostname.includes('etsy.com')) return 'https://etsy.com/listing/...';
+  } catch { /* ignore */ }
+  return 'https://amazon.com/... or walmart.com/... or target.com/...';
+}
 
 export default function AddItemModal({ onClose, onAdd }) {
   const [tab, setTab] = useState('upload'); // 'upload' | 'link' | 'note'
@@ -233,7 +245,9 @@ export default function AddItemModal({ onClose, onAdd }) {
                 <input
                   className="input"
                   type="url"
-                  placeholder={LINK_TYPES.find(l => l.value === form.type)?.placeholder}
+                  placeholder={form.type === 'amazon'
+                    ? detectRetailerPlaceholder(form.content)
+                    : LINK_TYPES.find(l => l.value === form.type)?.placeholder}
                   value={form.content}
                   onChange={handleUrlChange}
                   required
