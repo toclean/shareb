@@ -19,8 +19,8 @@ export default function Navbar() {
           <span>ShareB</span>
         </NavLink>
 
-        {/* Nav links */}
-        <div className="flex items-center gap-1 ml-2">
+        {/* Nav links — hidden on mobile (use bottom nav instead) */}
+        <div className="hidden md:flex items-center gap-1 ml-2">
           <NavLink
             to="/"
             end

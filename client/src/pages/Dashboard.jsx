@@ -11,7 +11,7 @@ const FILTERS = [
   { value: 'video', label: '🎬 Videos' },
   { value: 'music', label: '🎵 Music' },
   { value: 'link', label: '🔗 Links' },
-  { value: 'amazon', label: '📦 Amazon' },
+  { value: 'amazon', label: '🛍️ Shop' },
   { value: 'note', label: '📝 Notes' },
 ];
 
@@ -53,7 +53,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-10">
+    <div className="max-w-2xl mx-auto px-4 pb-28">
       {/* Partner banner if no partner yet */}
       {!partner && (
         <div className="mt-6 bg-honey-100 border border-honey-300 rounded-2xl p-4 text-center">
@@ -135,6 +135,15 @@ export default function Dashboard() {
           onAdd={handleAdd}
         />
       )}
+
+      {/* Mobile FAB — visible only on mobile, above bottom nav */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="fixed bottom-20 right-4 z-40 md:hidden w-14 h-14 rounded-full bg-honey-500 text-bee-black text-2xl font-bold shadow-xl flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Share something"
+      >
+        +
+      </button>
     </div>
   );
 }

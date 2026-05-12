@@ -269,7 +269,7 @@ export default function ItemCard({ item: initialItem, onDelete, onReact, onFavor
           {item.is_mine && (
             <button
               onClick={handleDelete}
-              className="ml-auto text-gray-300 hover:text-red-400 text-sm px-2 py-1 transition-colors opacity-0 group-hover:opacity-100"
+              className="ml-auto text-gray-300 hover:text-red-400 text-sm px-2 py-1 transition-colors opacity-40 group-hover:opacity-100"
             >
               🗑️
             </button>

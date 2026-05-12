@@ -8,6 +8,21 @@ const LINK_TYPES = [
   { value: 'amazon', label: '🛍️ Shop', placeholder: 'https://amazon.com/...' },
 ];
 
+// Known shopping site domains — auto-switch to Shop type when detected
+const SHOP_DOMAINS = [
+  'amazon.', 'walmart.', 'target.', 'bestbuy.', 'etsy.', 'ebay.',
+  'costco.', 'homedepot.', 'lowes.', 'wayfair.', 'chewy.', 'overstock.',
+  'samsclub.', 'kohls.', 'macys.', 'nordstrom.', 'zappos.',
+];
+
+function detectUrlType(url) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    if (SHOP_DOMAINS.some(d => hostname.includes(d))) return 'amazon';
+  } catch { /* ignore */ }
+  return 'link';
+}
+
 function detectRetailerPlaceholder(url) {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
@@ -109,7 +124,8 @@ export default function AddItemModal({ onClose, onAdd }) {
 
   function handleUrlChange(e) {
     const url = e.target.value;
-    setForm(f => ({ ...f, content: url }));
+    const detectedType = url ? detectUrlType(url) : form.type;
+    setForm(f => ({ ...f, content: url, type: detectedType }));
     // Debounce preview fetch
     clearTimeout(previewTimeoutRef.current);
     previewTimeoutRef.current = setTimeout(() => fetchPreview(url), 600);
@@ -147,7 +163,7 @@ export default function AddItemModal({ onClose, onAdd }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div
-        className="card w-full max-w-lg modal-enter"
+        className="card w-full max-w-lg modal-enter max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

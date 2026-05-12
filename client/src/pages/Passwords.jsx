@@ -56,7 +56,7 @@ export default function Passwords() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-10">
+    <div className="max-w-2xl mx-auto px-4 pb-28">
       <div className="flex items-center justify-between mt-6 mb-4">
         <div>
           <h1 className="text-2xl font-black text-bee-black">Password Vault 🔐</h1>

@@ -93,7 +93,35 @@ function extractJsonLdPrice(html) {
   return null;
 }
 
-// Helper: block private/loopback IPs to prevent SSRF
+// Helper: extract price from <script id="__NEXT_DATA__"> JSON (Target, Walmart Next.js pages)
+function extractNextDataPrice(html, hostname) {
+  const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!m) return null;
+  try {
+    // Stringify the parsed JSON for regex searching (handles whitespace normalization)
+    const jsonStr = JSON.stringify(JSON.parse(m[1]));
+
+    if (hostname.includes('target.com')) {
+      // formatted_current_price is the most reliable field
+      const p1 = jsonStr.match(/"formatted_current_price"\s*:\s*"(\$?[\d,.]+)/);
+      if (p1) return p1[1];
+      const p2 = jsonStr.match(/"current_retail"\s*:\s*([\d.]+)/);
+      if (p2) return p2[1];
+    }
+
+    if (hostname.includes('walmart.com')) {
+      const p1 = jsonStr.match(/"priceString"\s*:\s*"(\$[\d,.]+)"/);
+      if (p1) return p1[1];
+      const p2 = jsonStr.match(/"currentPrice"\s*:\s*\{"price"\s*:\s*([\d.]+)/);
+      if (p2) return p2[1];
+      const p3 = jsonStr.match(/"sellPrice"\s*:\s*([\d.]+)/);
+      if (p3) return p3[1];
+    }
+  } catch (_) { /* skip */ }
+  return null;
+}
+
+
 function isPrivateHost(hostname) {
   return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
 }
@@ -184,6 +212,12 @@ router.get('/link-preview', async (req, res) => {
         );
       }
 
+      // Layer 2.5: __NEXT_DATA__ JSON blob (Target / Walmart Next.js pages)
+      if (!result.price) {
+        const hostname = parsed.hostname.replace(/^www\./, '');
+        result.price = formatPrice(extractNextDataPrice(html, hostname));
+      }
+
       // Layer 3: Retailer-specific JSON patterns (tighter context, less false-positive risk)
       if (!result.price) {
         const hostname = parsed.hostname.replace(/^www\./, '');
@@ -191,19 +225,23 @@ router.get('/link-preview', async (req, res) => {
 
         if (hostname.includes('walmart.com')) {
           pricePatterns = [
-            // "priceString":"$24.98" — most human-readable, safest match
-            /"priceString"\s*:\s*"(\$[\d,.]+)"/,
+            // "priceString":"$24.98" — most human-readable
+            /"priceString"\s*:\s*"(\$?[\d,.]+)"/,
             // "currentPrice":{"price":24.98} — numeric inside price object
-            /"currentPrice"\s*:\s*\{[^}]{0,120}"price"\s*:\s*([\d.]+)/,
+            /"currentPrice"\s*:\s*\{[^}]{0,200}"price"\s*:\s*([\d.]+)/,
+            // "sellPrice":24.98 — used on some Walmart item pages
+            /"sellPrice"\s*:\s*([\d.]+)/,
             // "displayPrice":"$24.98"
-            /"displayPrice"\s*:\s*"(\$[\d,.]+)"/,
+            /"displayPrice"\s*:\s*"(\$?[\d,.]+)"/,
           ];
         } else if (hostname.includes('target.com')) {
           pricePatterns = [
             // "formatted_current_price":"$24.99" — from __NEXT_DATA__ JSON blob
-            /"formatted_current_price"\s*:\s*"(\$[\d,.]+)"/,
+            /"formatted_current_price"\s*:\s*"(\$?[\d,.]+)/,
             // "current_retail":24.99
             /"current_retail"\s*:\s*([\d.]+)/,
+            // "price":{"value":24.99} — generic product price object
+            /"price"\s*:\s*\{[^}]{0,100}"value"\s*:\s*([\d.]+)/,
           ];
         } else if (hostname.includes('etsy.com')) {
           pricePatterns = [

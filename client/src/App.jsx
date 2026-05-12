@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Shopping from './pages/Shopping';
 import Passwords from './pages/Passwords';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ function AppRoutes() {
         <Route path="/passwords" element={<ProtectedRoute><Passwords /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {user && <BottomNav />}
     </BrowserRouter>
   );
 }
